@@ -1,3 +1,18 @@
-<google-map height="800px" width="1900px" [center]="center" [zoom]="zoom">
-  <map-marker *ngFor="let marker of markers" [position]="marker"></map-marker>
+<google-map #mapElement [center]="center" [zoom]="zoom">
+  <button
+    (click)="toggleRoutesMenu()"
+    [class.active]="selectedRouteId !== null"
+  >
+    Lines
+  </button>
+
+  <ul *ngIf="showRoutesMenu">
+    <li
+      *ngFor="let route of routes"
+      [class.selected]="route.id === selectedRouteId"
+      (click)="selectRoute(route.id)"
+    >
+      {{ route.shortName }}: {{ route.longName }}
+    </li>
+  </ul>
 </google-map>

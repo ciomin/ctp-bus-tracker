@@ -1,0 +1,50 @@
+/* Add this inside your map.component.css */
+
+/* 
+.map-container {
+  height: 100vh !important; // 100% of the viewport height
+  width: 100vw !important;  // 100% of the viewport width
+}
+*/
+
+button {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1000; /* Make sure it's above the map */
+}
+
+ul {
+  list-style: none;
+  position: absolute;
+  top: 50px; /* Adjust based on the button's size */
+  left: 10px;
+  z-index: 1000; /* Make sure it's above the map */
+  background-color: white;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  max-height: 300px; /* Set a maximum height */
+  overflow-y: auto; /* Add scroll to the y-axis if content overflows */
+}
+
+li {
+  padding: 5px;
+  cursor: pointer;
+}
+
+li:hover {
+  background-color: #f0f0f0;
+}
+
+.selected {
+  background-color: #f0f0f0; /* Example background color */
+  color: #333; /* Example text color */
+  /* Add other styling as needed */
+}
+
+button.active {
+  background-color: #007bff; /* Example background color */
+  color: white; /* Example text color */
+  /* Add other styling as needed */
+}
