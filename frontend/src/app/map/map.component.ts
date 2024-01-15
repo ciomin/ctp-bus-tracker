@@ -1,14 +1,13 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, Renderer2, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
-import { GoogleMapsModule } from '@angular/google-maps';
+import { GoogleMap, GoogleMapsModule } from '@angular/google-maps';
 import {
   HttpClient,
   HttpClientModule,
   HttpHeaders,
 } from '@angular/common/http';
 import { Observable, catchError, throwError, forkJoin } from 'rxjs';
-import { GoogleMap } from '@angular/google-maps';
 
 interface ShapePoint {
   shape_id: string;
@@ -29,7 +28,6 @@ export class MapComponent {
   private apiKey = '6vvrXArXKuazfWKpaSXPw5OmCnqHvi6w1yxs05w4';
   private apiBaseUrl = 'https://api.tranzy.dev/v1/opendata';
 
-  // Rest of the code...
   markers: google.maps.LatLngLiteral[] = [];
 
   @ViewChild(GoogleMap, { static: false }) mapElement!: GoogleMap;
@@ -43,7 +41,11 @@ export class MapComponent {
     }),
   };
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private renderer: Renderer2,
+    private el: ElementRef,
+    private http: HttpClient
+  ) {}
 
   routes: any[] = [];
 
@@ -51,12 +53,6 @@ export class MapComponent {
     this.fetchAllData();
     this.fetchRoutes();
     //this.startVehicleUpdates(); // Start updating vehicles periodically
-  }
-
-  ngOnDestroy() {
-    if (this.vehicleUpdateInterval) {
-      clearInterval(this.vehicleUpdateInterval); // Clear interval when component is destroyed
-    }
   }
 
   async fetchRoutes(): Promise<void> {
@@ -161,16 +157,16 @@ export class MapComponent {
       this.allShapes.filter((shape) => shape.shape_id === shapeId)
     );
 
-    this.selectedStops = this.allStops.filter(
-      (stop) => stop.route_id === routeId
-    );
+    this.selectedStops = this.allStops;
+
+    // Filter out vehicles with a null trip_id
     this.selectedVehicles = this.allVehicles.filter(
-      (vehicle) => vehicle.route_id === routeId
+      (vehicle) => vehicle.route_id === routeId && vehicle.trip_id != null
     );
 
     // Update the map with new data
     this.updateShapesOnMap(this.selectedShapes);
-    //this.updateVehiclesOnMap(this.selectedVehicles);
+    this.updateVehiclesOnMap(this.selectedVehicles);
     this.updateStopsOnMap(this.selectedStops);
 
     // Close the routes menu
@@ -288,62 +284,180 @@ export class MapComponent {
   //   };
   // }
 
-  vehicleUpdateInterval: any;
+  createCustomMarkerIcon(routeShortName: string): string {
+    // Create a canvas element
+    const canvas = document.createElement('canvas');
+    canvas.width = 30;
+    canvas.height = 30;
+    const context = canvas.getContext('2d');
 
-  // startVehicleUpdates() {
-  //   // Define an interval duration
-  //   const updateInterval = 5000;
+    if (context) {
+      // Draw the black circle
+      context.fillStyle = 'black';
+      context.beginPath();
+      context.arc(15, 15, 15, 0, Math.PI * 2);
+      context.fill();
 
-  //   // Set up the interval
-  //   this.vehicleUpdateInterval = setInterval(() => {
-  //     this.fetchLatestVehicleData();
-  //   }, updateInterval);
-  // }
+      // Set text style
+      context.fillStyle = 'yellow';
+      context.font = '12px Arial';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+    }
 
-  // fetchLatestVehicleData() {
-  //   this.http
-  //     .get<any[]>(`${this.apiBaseUrl}/vehicles`, this.httpOptions)
-  //     .subscribe(
-  //       (vehicles) => {
-  //         this.updateVehiclesOnMap(vehicles);
-  //       },
-  //       (error) => {
-  //         console.error('Error fetching updated vehicle data:', error);
-  //       }
-  //     );
-  // }
+    // Measure text width (for horizontal centering)
+    if (context) {
+      const textWidth = context.measureText(routeShortName).width;
 
-  // updateVehiclesOnMap(vehicles: any[]) {
-  //   const routeVehicles = vehicles.filter(
-  //     (vehicle) => vehicle.route_id === this.selectedRouteId
-  //   );
+      // Draw the text onto the canvas
+      context.fillText(routeShortName, 15, 15);
+    }
 
-  //   routeVehicles.forEach((vehicle) => {
-  //     let marker = this.vehicleMarkers.find((m) => m.getLabel() === vehicle.id);
-  //     if (marker) {
-  //       // Update existing marker position
-  //       marker.setPosition(
-  //         new google.maps.LatLng(vehicle.latitude, vehicle.longitude)
-  //       );
-  //     } else {
-  //       // Find the route to get the short name
-  //       const route = this.routes.find((r) => r.id === vehicle.route_id);
-  //       const icon = this.createCustomMarkerIcon(route ? route.shortName : '');
+    // Convert the canvas to a data URL
+    return canvas.toDataURL();
+  }
 
-  //       // Create new marker
-  //       marker = new google.maps.Marker({
-  //         position: { lat: vehicle.latitude, lng: vehicle.longitude },
-  //         map: this.mapElement.googleMap,
-  //         icon: icon,
-  //         label: vehicle.id,
-  //       });
-  //       this.vehicleMarkers.push(marker);
-  //     }
-  //   });
-  // }
+  updateVehiclesOnMap(vehicles: any[]) {
+    vehicles.forEach((vehicle) => {
+      let marker = this.vehicleMarkers.find((m) => m.getLabel() === vehicle.id);
+      if (!marker) {
+        // Find the route's short name using the vehicle's route_id
+        const route = this.routes.find((r) => r.id === vehicle.route_id);
+        const shortName = route ? route.shortName : 'Unknown';
+
+        // Create icon using the route's short name
+        const iconUrl = this.createCustomMarkerIcon(shortName);
+
+        // Create a new marker
+        marker = new google.maps.Marker({
+          position: { lat: vehicle.latitude, lng: vehicle.longitude },
+          map: this.mapElement.googleMap,
+          icon: iconUrl,
+          label: vehicle.id,
+        });
+        this.vehicleMarkers.push(marker);
+      } else {
+        // Update marker position if it already exists
+        marker.setPosition(
+          new google.maps.LatLng(vehicle.latitude, vehicle.longitude)
+        );
+      }
+    });
+  }
+
+  /* updateStopsOnMap(stops: any[]) {
+    const coordinatesAreCloseEnough = (
+      coord1: { lat: number; lng: number },
+      coord2: { lat: number; lng: number },
+      threshold = 0.00001
+    ) => {
+      return (
+        Math.abs(coord1.lat - coord2.lat) < threshold &&
+        Math.abs(coord1.lng - coord2.lng) < threshold
+      );
+    };
+
+    // Only use the shape points that are part of the selected route
+    const relevantShapePoints = this.selectedShapes;
+
+    stops.forEach((stop) => {
+      // Check if the stop's coordinates match any of the relevant shape points
+      const matchingShapePoints = relevantShapePoints.filter((shapePoint) => {
+        return coordinatesAreCloseEnough(
+          { lat: shapePoint.shape_pt_lat, lng: shapePoint.shape_pt_lon },
+          { lat: stop.stop_lat, lng: stop.stop_lon }
+        );
+      });
+
+      // If there is at least one matching shape point, display the stop on the map
+      if (matchingShapePoints.length > 0) {
+        // Assume the first match is sufficient to determine the direction
+        const firstMatchingShape = matchingShapePoints[0];
+        const isWayDirection = firstMatchingShape.shape_id.endsWith('_0');
+        const markerColor = isWayDirection ? '#0000FF' : '#FF0000'; // Blue for way, red for roundway
+
+        // Create a marker for the stop
+        const stopMarker = new google.maps.Marker({
+          position: { lat: stop.stop_lat, lng: stop.stop_lon },
+          map: this.mapElement.googleMap,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8, // Size of the circle
+            fillColor: markerColor,
+            fillOpacity: 1,
+            strokeWeight: 2,
+            strokeColor: 'white', // White border for visibility
+          },
+          title: stop.stop_name,
+        });
+
+        // Save the marker for potential later use
+        this.stopMarkers.push(stopMarker);
+      }
+    });
+  }*/
 
   updateStopsOnMap(stops: any[]) {
-    // Logic to place stop markers on the map
+    // Helper function to calculate the distance between two coordinates
+    const calculateDistance = (
+      coord1: { lat: number; lng: number },
+      coord2: { lat: number; lng: number }
+    ) => {
+      const R = 6371e3; // Earth's radius in meters
+      const φ1 = (coord1.lat * Math.PI) / 180;
+      const φ2 = (coord2.lat * Math.PI) / 180;
+      const Δφ = ((coord2.lat - coord1.lat) * Math.PI) / 180;
+      const Δλ = ((coord2.lng - coord1.lng) * Math.PI) / 180;
+
+      const a =
+        Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      return R * c; // Distance in meters
+    };
+
+    const maxDistanceThreshold = 50; // maximum distance threshold in meters
+
+    stops.forEach((stop) => {
+      let closestShapePoint: any | null = null;
+      let minDistance = Number.MAX_VALUE;
+
+      this.selectedShapes.forEach((shapePoint) => {
+        const distance = calculateDistance(
+          { lat: shapePoint.shape_pt_lat, lng: shapePoint.shape_pt_lon },
+          { lat: stop.stop_lat, lng: stop.stop_lon }
+        );
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestShapePoint = shapePoint;
+        }
+      });
+
+      // Create a marker only if the closest shape point is within the threshold
+      if (closestShapePoint && minDistance <= maxDistanceThreshold) {
+        const isWayDirection = closestShapePoint.shape_id.endsWith('_0');
+        const markerColor = isWayDirection ? '#0000FF' : '#FF0000'; // Blue for way, red for roundway
+
+        // Create a marker for the stop
+        const stopMarker = new google.maps.Marker({
+          position: { lat: stop.stop_lat, lng: stop.stop_lon },
+          map: this.mapElement.googleMap,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8, // Size of the circle
+            fillColor: markerColor,
+            fillOpacity: 1,
+            strokeWeight: 2,
+            strokeColor: 'white', // White border for visibility
+          },
+          title: stop.stop_name,
+        });
+
+        // Save the marker for potential later use
+        this.stopMarkers.push(stopMarker);
+      }
+    });
   }
 
   async getData(vehicleId: number): Promise<Observable<any[]>> {
