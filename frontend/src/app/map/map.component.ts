@@ -345,11 +345,11 @@ export class MapComponent {
     });
   }
 
-  /* updateStopsOnMap(stops: any[]) {
+  updateStopsOnMap(stops: any[]) {
     const coordinatesAreCloseEnough = (
       coord1: { lat: number; lng: number },
       coord2: { lat: number; lng: number },
-      threshold = 0.00001
+      threshold = 0.0001
     ) => {
       return (
         Math.abs(coord1.lat - coord2.lat) < threshold &&
@@ -395,9 +395,9 @@ export class MapComponent {
         this.stopMarkers.push(stopMarker);
       }
     });
-  }*/
+  }
 
-  updateStopsOnMap(stops: any[]) {
+  /*updateStopsOnMap(stops: any[]) {
     // Helper function to calculate the distance between two coordinates
     const calculateDistance = (
       coord1: { lat: number; lng: number },
@@ -458,7 +458,7 @@ export class MapComponent {
         this.stopMarkers.push(stopMarker);
       }
     });
-  }
+  }*/
 
   async getData(vehicleId: number): Promise<Observable<any[]>> {
     return this.http
