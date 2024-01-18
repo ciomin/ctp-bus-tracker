@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "angular.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist/frontend"
+      }
+    }
+  ],
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/favicon.ico", "dest": "dist/frontend/browser/favicon.ico" },
+    { "src": "/(.*)", "dest": "dist/frontend/$1" }
+  ]
+}
