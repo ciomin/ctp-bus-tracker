@@ -1,4 +1,10 @@
-import { Component, Renderer2, ElementRef, ViewChild } from '@angular/core';
+import {
+  Component,
+  Renderer2,
+  OnInit,
+  ElementRef,
+  ViewChild,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { GoogleMap, GoogleMapsModule } from '@angular/google-maps';
@@ -29,6 +35,7 @@ export class MapComponent {
   private apiBaseUrl = 'https://api.tranzy.dev/v1/opendata';
 
   markers: google.maps.LatLngLiteral[] = [];
+  userLocation: google.maps.LatLngLiteral | undefined;
 
   @ViewChild(GoogleMap, { static: false }) mapElement!: GoogleMap;
 
@@ -49,11 +56,66 @@ export class MapComponent {
 
   routes: any[] = [];
 
+  display: any;
+  center: google.maps.LatLngLiteral = {
+    lat: 46.7712,
+    lng: 23.6236,
+  };
+  zoom = 13;
+  options: google.maps.MapOptions = {
+    streetViewControl: false, // Remove Street View button
+    mapTypeControl: false, // Remove Map/Satellite button
+    fullscreenControl: false, // Remove Fullscreen button
+    maxZoom: 16,
+    minZoom: 13,
+  };
+
+  move(event: google.maps.MapMouseEvent) {
+    if (event.latLng != null) {
+      this.display = event.latLng.toJSON();
+    }
+  }
+
   ngOnInit(): void {
     this.fetchAllData();
     this.fetchRoutes();
-    //this.startVehicleUpdates(); // Start updating vehicles periodically
+    // Request user's location
+    //this.getUserLocation();
   }
+
+  // getUserLocation() {
+  //   if (navigator.geolocation) {
+  //     navigator.geolocation.getCurrentPosition(
+  //       (position) => {
+  //         this.userLocation = {
+  //           lat: position.coords.latitude,
+  //           lng: position.coords.longitude,
+  //         };
+  //         // Add marker for user's location
+  //         this.addUserLocationMarker();
+  //       },
+  //       (error) => {
+  //         console.error('Error fetching geolocation', error);
+  //         // Handle errors or denials here
+  //       }
+  //     );
+  //   } else {
+  //     console.log('Geolocation is not supported by this browser.');
+  //     // Handle browser support issues
+  //   }
+  // }
+
+  // addUserLocationMarker() {
+  //   if (this.mapElement && this.userLocation) {
+  //     new google.maps.Marker({
+  //       position: this.userLocation,
+  //       map: this.mapElement.googleMap,
+  //       // Optional: Use a custom icon
+  //       icon: 'path_to_custom_icon.png',
+  //       title: 'Your Location',
+  //     });
+  //   }
+  // }
 
   async fetchRoutes(): Promise<void> {
     this.http
@@ -472,19 +534,6 @@ export class MapComponent {
           return throwError('Error fetching vehicle data.');
         })
       );
-  }
-
-  display: any;
-  center: google.maps.LatLngLiteral = {
-    lat: 46.7712,
-    lng: 23.6236,
-  };
-  zoom = 13.5;
-
-  move(event: google.maps.MapMouseEvent) {
-    if (event.latLng != null) {
-      this.display = event.latLng.toJSON();
-    }
   }
 
   // Method to log messages from the template
